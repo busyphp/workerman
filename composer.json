@@ -1,0 +1,75 @@
+{
+	"name"        : "busyphp/workerman",
+	"type"        : "library",
+	"description" : "支持异步数据处理，如批量发送邮件、短信等。可用于创建Http服务，Websocket服务、Tcp服务、Rpc服务以脱离Apache、Nginx等独立运行",
+	"homepage"    : "http://www.harter.cn/?form=BusyPHP&plugin=busyphp/workerman",
+	"keywords"    : [
+		"Workerman",
+		"队列",
+		"Websocket服务",
+		"TCP服务",
+		"任务处理"
+	],
+	"authors"     : [
+		{
+			"name"  : "busy^life",
+			"email" : "busy.life@qq.com"
+		}
+	],
+	"license"     : "CC-BY-NC-4.0",
+	"require"     : {
+		"php"                      : ">=7.2.0",
+		"ext-json"                 : "*",
+		"ext-fileinfo"             : "*",
+		"ext-posix"                : "*",
+		"ext-pcntl"                : "*",
+		"workerman/workerman"      : "^4.0",
+		"workerman/gateway-worker" : "^3.0.0",
+		"busyphp/busyphp"          : "^6.0"
+	},
+	"require-dev" : {
+		"symfony/var-dumper" : "^4.3|^5.1"
+	},
+	"autoload"    : {
+		"psr-4" : {
+			"BusyPHP\\workerman\\" : "src"
+		}
+	},
+	"config"      : {
+		"preferred-install" : "dist"
+	},
+	"extra"       : {
+		"branch-alias" : {
+			"dev-master" : "1.0.x-dev"
+		},
+		"think"        : {
+			"config" : {
+				"busy-workerman.php" : "src/config/config.php"
+			}
+		},
+		"busyphp"      : {
+			"manager"  : {
+				"name"    : "Workerman模块",
+				"class"   : "BusyPHP\\workerman\\app\\controller\\ManagerController",
+				"install" : {
+					"install_operate"   : {
+						"request_confirm" : "确认要安装 <code>__package__</code> 吗？"
+					},
+					"uninstall_operate" : {
+						"request_confirm" : "确认要卸载 <code>__package__</code> 吗？"
+					}
+				},
+				"setting" : {
+					"footer"        : false,
+					"type"          : "page",
+					"border_top"    : false,
+					"border_bottom" : false,
+					"padding"       : "0px"
+				}
+			},
+			"services" : [
+				"BusyPHP\\workerman\\Service"
+			]
+		}
+	}
+}

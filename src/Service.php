@@ -2,7 +2,7 @@
 namespace BusyPHP\workerman;
 
 use BusyPHP\workerman\command\GatewayWorker;
-use BusyPHP\workerman\command\Worker;
+use BusyPHP\workerman\command\HttpWorker;
 use think\Service as BaseService;
 
 
@@ -18,7 +18,7 @@ class Service extends BaseService
     public function register()
     {
         $this->commands([
-            'worker'         => Worker::class,
+            HttpWorker::class,
             'worker:server'  => Server::class,
             'worker:gateway' => GatewayWorker::class,
         ]);

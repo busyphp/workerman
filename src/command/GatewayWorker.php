@@ -183,8 +183,8 @@ class GatewayWorker extends Command
     /**
      * 设置参数
      * @access protected
-     * @param Worker $worker Worker对象
-     * @param array  $option 参数
+     * @param HttpWorker $worker Worker对象
+     * @param array      $option 参数
      * @return void
      */
     protected function option(Worker $worker, array $option = [])
