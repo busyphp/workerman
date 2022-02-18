@@ -21,8 +21,6 @@
 		"php"                      : ">=7.2.0",
 		"ext-json"                 : "*",
 		"ext-fileinfo"             : "*",
-		"ext-posix"                : "*",
-		"ext-pcntl"                : "*",
 		"workerman/workerman"      : "^4.0",
 		"workerman/gateway-worker" : "^3.0.0",
 		"busyphp/busyphp"          : "^6.0"
@@ -58,13 +56,6 @@
 					"uninstall_operate" : {
 						"request_confirm" : "确认要卸载 <code>__package__</code> 吗？"
 					}
-				},
-				"setting" : {
-					"footer"        : false,
-					"type"          : "page",
-					"border_top"    : false,
-					"border_bottom" : false,
-					"padding"       : "0px"
 				}
 			},
 			"services" : [
