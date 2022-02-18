@@ -160,7 +160,8 @@ class HttpServer extends Server
                         
                         if ($this->lastMtime < $file->getMTime()) {
                             echo '[update]' . $file . "\n";
-                            posix_kill(posix_getppid(), SIGUSR1);
+                            
+                            $this->stop();
                             $this->lastMtime = $file->getMTime();
                             
                             return;
