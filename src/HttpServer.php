@@ -202,8 +202,12 @@ class HttpServer extends Server
                 $response = $handle->render($request, $e);
             }
             
-            $headers = $response->getHeader();
-            unset($headers['Content-Length']);
+            $headers           = $response->getHeader();
+            $headers['Server'] = 'BusyPHP Workerman Server';
+            if (!isset($headers['Transfer-Encoding'])) {
+                unset($headers['Content-Length']);
+            }
+            
             $res = new WorkerManResponse($response->getCode(), $headers, $response->getContent());
             
             // 设置Cookie
