@@ -11,6 +11,19 @@ use BusyPHP\App;
  */
 class Application extends App
 {
+    protected $inConsole = true;
+    
+    
+    /**
+     * 设置是否运行在CLI模式中
+     * @param bool $inConsole
+     */
+    public function setInConsole(bool $inConsole = true)
+    {
+        $this->inConsole = $inConsole;
+    }
+    
+    
     /**
      * 重置
      */
@@ -28,6 +41,6 @@ class Application extends App
      */
     public function runningInConsole() : bool
     {
-        return false;
+        return $this->inConsole;
     }
 }

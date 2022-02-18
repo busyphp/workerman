@@ -26,7 +26,7 @@ use Workerman\Worker;
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
  * @version $Id: 2022/2/17 2:20 PM Http.php $
  */
-class HttpServer extends Server
+class HttpServer extends BaseServer
 {
     /**
      * @var Application
@@ -204,6 +204,7 @@ class HttpServer extends Server
         
         // 请求处理
         $this->app->reset();
+        $this->app->setInConsole(false);
         
         // dump中间件
         if (class_exists(VarDumper::class)) {

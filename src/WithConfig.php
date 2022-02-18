@@ -25,4 +25,19 @@ trait WithConfig
         
         return $app->config->get("busy-workerman.{$name}", $default);
     }
+    
+    
+    /**
+     * 获取gateway配置
+     * @param string|int $name
+     * @param string     $key
+     * @param mixed      $default
+     * @return array|mixed
+     */
+    protected function getGatewayConfig($name, string $key, $default = null)
+    {
+        $key = $key ? ".{$key}" : '';
+        
+        return $this->getWorkerConfig("gateway.{$name}{$key}", $default);
+    }
 }

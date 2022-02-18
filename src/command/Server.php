@@ -1,47 +1,53 @@
 <?php
 namespace BusyPHP\workerman\command;
 
+use BusyPHP\helper\ArrayHelper;
+use BusyPHP\workerman\GatewayEvents;
+use BusyPHP\workerman\WithConfig;
+use Closure;
+use GatewayWorker\BusinessWorker;
+use GatewayWorker\Gateway;
+use GatewayWorker\Register;
 use think\console\Command;
-use think\console\Input;
 use think\console\input\Argument;
 use think\console\input\Option;
-use think\console\Output;
-use think\facade\App;
-use think\facade\Config;
-use BusyPHP\workerman\Server as WorkerServer;
+use BusyPHP\workerman\HttpServer;
 use Workerman\Worker;
 
+
 /**
- * Worker Server 命令行类
+ * Server
  * @author busy^life <busy.life@qq.com>
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
- * @version $Id: 2022/2/17 2:22 PM Server.php $
+ * @version $Id: 2022/2/17 2:23 PM Server.php $
  */
 class Server extends Command
 {
+    use WithConfig;
+    
     protected $config = [];
     
     
     public function configure()
     {
-        $this->setName('worker:server')
+        $this->setName('workerman')
             ->addArgument('action', Argument::OPTIONAL, "start|stop|restart|reload|status|connections", 'start')
-            ->addOption('host', 'H', Option::VALUE_OPTIONAL, 'the host of workerman server.', null)
-            ->addOption('port', 'p', Option::VALUE_OPTIONAL, 'the port of workerman server.', null)
-            ->addOption('daemon', 'd', Option::VALUE_NONE, 'Run the workerman server in daemon mode.')
-            ->setDescription('Workerman Server for ThinkPHP');
+            ->addOption('host', 'H', Option::VALUE_OPTIONAL, 'the host of WorkerMan server.')
+            ->addOption('port', 'p', Option::VALUE_OPTIONAL, 'the port of WorkerMan server.')
+            ->addOption('server', 's', Option::VALUE_OPTIONAL, 'Specify the name of the enabled service')
+            ->addOption('daemon', 'd', Option::VALUE_NONE, 'Run the WorkerMan server in daemon mode.')
+            ->setDescription('Workerman for BusyPHP');
     }
     
     
-    public function execute(Input $input, Output $output)
+    public function handle()
     {
-        $action = $input->getArgument('action');
-        
+        $action = $this->input->getArgument('action');
         if (DIRECTORY_SEPARATOR !== '\\') {
             if (!in_array($action, ['start', 'stop', 'reload', 'restart', 'status', 'connections'])) {
-                $output->writeln("<error>Invalid argument action:{$action}, Expected start|stop|restart|reload|status|connections .</error>");
+                $this->output->writeln("<error>Invalid argument action:{$action}, Expected start|stop|restart|reload|status|connections .</error>");
                 
-                return false;
+                return;
             }
             
             global $argv;
@@ -49,115 +55,255 @@ class Server extends Command
             array_shift($argv);
             array_unshift($argv, 'think', $action);
         } elseif ('start' != $action) {
-            $output->writeln("<error>Not Support action:{$action} on Windows.</error>");
-            
-            return false;
-        }
-        
-        $this->config = Config::get('worker_server');
-        
-        if ('start' == $action) {
-            $output->writeln('Starting Workerman server...');
-        }
-        
-        // 自定义服务器入口类
-        if (!empty($this->config['worker_class'])) {
-            $class = (array) $this->config['worker_class'];
-            
-            foreach ($class as $server) {
-                $this->startServer($server);
-            }
-            
-            // Run worker
-            Worker::runAll();
+            $this->output->writeln("<error>Not Support action:{$action} on Windows.</error>");
             
             return;
         }
         
-        if (!empty($this->config['socket'])) {
-            $socket = $this->config['socket'];
-            [$host, $port] = explode(':', $socket);
+        if ('start' == $action) {
+            $this->output->writeln('Starting Workerman http server...');
+        }
+        
+        // 分别启动
+        if ($server = trim($this->getInputOption('server', ''))) {
+            // 启动HTTP服务
+            if ($server === 'http') {
+                $this->startHttpServer();
+            } else {
+                // 分别启动长连接服务
+                if (0 === stripos($server, 'gateway.')) {
+                    $name = substr($server, 8);
+                    if (!$name) {
+                        $this->output->writeln("<error>The '$server' input is incorrect, example: gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
+                        
+                        return;
+                    }
+                    
+                    // 分别启动，适用于window环境
+                    if (false !== strpos($name, '.')) {
+                        $arr  = explode('.', $name);
+                        $name = trim($arr[0] ?? '');
+                        $key  = trim($arr[1] ?? '');
+                        if (!$name || !$key || !in_array($key, ['register', 'r', 'business', 'b', 'gateway', 'g'])) {
+                            $this->output->writeln("<error>The '$server' input is incorrect, example: gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
+                            
+                            return;
+                        }
+                        
+                        switch ($key) {
+                            case 'r':
+                            case 'register':
+                                $this->startRegisterWorker($name);
+                            break;
+                            case 'b':
+                            case 'business':
+                                $this->startBusinessWorker($name);
+                            break;
+                            case 'g':
+                            case 'gateway':
+                                $this->startGatewayWorker($name);
+                            break;
+                        }
+                    }
+                    
+                    //
+                    // 单组服务启动
+                    else {
+                        $gatewayConfig = $this->getGatewayConfig($name, '', []);
+                        if (!$gatewayConfig) {
+                            $this->output->writeln("<error>The '$name' server configuration could not be found</error>");
+                            
+                            return;
+                        }
+                        
+                        // 初始化Register服务
+                        if (ArrayHelper::get($gatewayConfig, 'register.enable')) {
+                            $this->startRegisterWorker($name);
+                        }
+                        
+                        // 初始化BusinessWorker服务
+                        if (ArrayHelper::get($gatewayConfig, 'business.enable')) {
+                            $this->startBusinessWorker($name);
+                        }
+                        
+                        // 初始化gateway服务
+                        if (ArrayHelper::get($gatewayConfig, 'gateway.enable')) {
+                            $this->startGatewayWorker($name);
+                        }
+                    }
+                } else {
+                    $this->output->writeln("<error>The '$server' input is incorrect, example: gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
+                    
+                    return;
+                }
+            }
         } else {
-            $host     = $this->getHost();
-            $port     = $this->getPort();
-            $protocol = !empty($this->config['protocol']) ? $this->config['protocol'] : 'websocket';
-            $socket   = $protocol . '://' . $host . ':' . $port;
-            unset($this->config['host'], $this->config['port'], $this->config['protocol']);
+            // 启动HTTP服务器
+            if ($this->getWorkerConfig('http.enable')) {
+                $this->startHttpServer();
+            }
+            
+            // 启动长连接服务
+            $this->startGatewayServer();
         }
         
-        if (isset($this->config['context'])) {
-            $context = $this->config['context'];
-            unset($this->config['context']);
-        } else {
-            $context = [];
-        }
-        
-        $worker = new Worker($socket, $context);
-        
-        if (empty($this->config['pidFile'])) {
-            $this->config['pidFile'] = App::getRootPath() . 'runtime/worker.pid';
-        }
-        
-        // 避免pid混乱
-        $this->config['pidFile'] .= '_' . $port;
-        
-        // 开启守护进程模式
-        if ($this->input->hasOption('daemon')) {
+        // 设置Worker静态属性
+        Worker::$pidFile    = $this->app->getRuntimeRootPath("workerman-worker.pid");
+        Worker::$logFile    = $this->app->getRuntimeRootPath("workerman-log.log");
+        Worker::$stdoutFile = $this->app->getRuntimeRootPath('workerman-stdout.log');
+        if ($this->getInputOption('daemon', $this->getWorkerConfig('daemonize', false))) {
             Worker::$daemonize = true;
         }
         
-        if (!empty($this->config['ssl'])) {
-            $this->config['transport'] = 'ssl';
-            unset($this->config['ssl']);
+        if (DIRECTORY_SEPARATOR == '\\') {
+            $this->output->writeln('You can exit with <info>`CTRL-C`</info>');
         }
         
-        // 设置服务器参数
-        foreach ($this->config as $name => $val) {
-            if (in_array($name, ['stdoutFile', 'daemonize', 'pidFile', 'logFile'])) {
-                Worker::${$name} = $val;
-            } else {
-                $worker->$name = $val;
-            }
-        }
-        
-        // Run worker
         Worker::runAll();
     }
     
     
-    protected function startServer(string $class)
+    /**
+     * 启动HTTP服务器
+     */
+    protected function startHttpServer()
     {
-        if (class_exists($class)) {
-            $worker = new $class;
-            if (!$worker instanceof WorkerServer) {
-                $this->output->writeln("<error>Worker Server Class Must extends \\BusyPHP\\workerman\\Server</error>");
+        // 服务器参数
+        $option          = $this->getWorkerConfig('http.option') ?: [];
+        $option['count'] = $this->getWorkerConfig('http.worker_num');
+        $option['name']  = 'BusyPHP Http Server';
+        
+        // 是否启用HTTPS
+        if ($this->getWorkerConfig('http.ssl')) {
+            $option['transport'] = 'ssl';
+        }
+        
+        // 实例服务器
+        $host    = $this->getInputOption('host', $this->getWorkerConfig('http.host')) ?: '0.0.0.0';
+        $port    = $this->getInputOption('port', $this->getWorkerConfig('http.port')) ?: '2346';
+        $context = $this->getWorkerConfig('http.context') ?: [];
+        $server  = new HttpServer($host, $port, $context, $option);
+        $server->setRoot($this->app->getPublicPath());   // 设置应用根目录
+        $server->setRootPath($this->app->getRootPath()); // 设置系统根目录
+        
+        // 应用设置
+        if (($appInit = $this->getWorkerConfig('http.app_init', '')) instanceof Closure) {
+            $server->appInit($appInit);
+        }
+        
+        // 设置文件监控
+        if (DIRECTORY_SEPARATOR !== '\\' && $this->getWorkerConfig('http.hot_update.enable', false)) {
+            $interval = $this->getWorkerConfig('http.hot_update.interval') ?: 2;
+            $paths    = $this->getWorkerConfig('http.hot_update.include') ?: [];
+            $server->setMonitor($interval, $paths);
+        }
+    }
+    
+    
+    /**
+     * 启动长连接服务
+     */
+    protected function startGatewayServer()
+    {
+        $gateways = $this->getWorkerConfig('gateway') ?: [];
+        foreach ($gateways as $name => $gateway) {
+            // 初始化Register服务
+            if (ArrayHelper::get($gateway, 'register.enable')) {
+                $this->startRegisterWorker($name);
             }
-        } else {
-            $this->output->writeln("<error>Worker Server Class Not Exists : {$class}</error>");
+            
+            // 初始化BusinessWorker服务
+            if (ArrayHelper::get($gateway, 'business.enable')) {
+                $this->startBusinessWorker($name);
+            }
+            
+            // 初始化gateway服务
+            if (ArrayHelper::get($gateway, 'gateway.enable')) {
+                $this->startGatewayWorker($name);
+            }
         }
     }
     
     
-    protected function getHost()
+    /**
+     * 获取注册中心地址
+     * @param string $name
+     * @return string
+     */
+    protected function getRegisterAddress(string $name) : string
     {
-        if ($this->input->hasOption('host')) {
-            $host = $this->input->getOption('host');
-        } else {
-            $host = !empty($this->config['host']) ? $this->config['host'] : '0.0.0.0';
-        }
-        
-        return $host;
+        return $this->getGatewayConfig($name, 'register.address', '');
     }
     
     
-    protected function getPort()
+    /**
+     * 启动注册中心
+     * @param string $name
+     */
+    protected function startRegisterWorker(string $name)
     {
-        if ($this->input->hasOption('port')) {
-            $port = $this->input->getOption('port');
-        } else {
-            $port = !empty($this->config['port']) ? $this->config['port'] : 2345;
+        $registerWorker       = new Register("text://{$this->getRegisterAddress($name)}");
+        $registerWorker->name = "BusyPHP $name Register Server";
+    }
+    
+    
+    /**
+     * 启动BusinessWorker
+     * @param string $name
+     */
+    protected function startBusinessWorker(string $name)
+    {
+        $businessWorker                  = new BusinessWorker();
+        $businessWorker->name            = "BusyPHP $name Business Server";
+        $businessWorker->registerAddress = $this->getRegisterAddress($name);
+        $businessWorker->eventHandler    = $this->getGatewayConfig($name, 'business.handler', '') ?: GatewayEvents::class;
+        $businessWorker->count           = max($this->getGatewayConfig($name, 'business.worker_num', 0), 1);
+    }
+    
+    
+    /**
+     * 启动GatewayWorker
+     * @param string $name
+     */
+    protected function startGatewayWorker(string $name)
+    {
+        $url = $this->getGatewayConfig($name, 'gateway.socket');
+        if (!$url) {
+            $protocol = $this->getGatewayConfig($name, 'gateway.protocol') ?: 'websocket';
+            $host     = $this->getInputOption('host', $this->getGatewayConfig($name, 'gateway.host'));
+            $port     = $this->getInputOption('port', $this->getGatewayConfig($name, 'gateway.port'));
+            $url      = "$protocol://$host:$port";
         }
         
-        return $port;
+        $gatewayWorker                       = new Gateway($url, $this->getGatewayConfig($name, 'gateway.context') ?: []);
+        $gatewayWorker->registerAddress      = $this->getRegisterAddress($name);
+        $gatewayWorker->name                 = "BusyPHP $name Gateway Server";
+        $gatewayWorker->count                = max($this->getGatewayConfig($name, 'gateway.worker_num'), 1);
+        $gatewayWorker->lanIp                = $this->getGatewayConfig($name, 'gateway.lan_ip') ?: '127.0.0.1';
+        $gatewayWorker->startPort            = $this->getGatewayConfig($name, 'gateway.start_port') ?: 2000;
+        $gatewayWorker->pingInterval         = $this->getGatewayConfig($name, 'gateway.ping.interval', 0);
+        $gatewayWorker->pingNotResponseLimit = $this->getGatewayConfig($name, 'gateway.ping.limit', 0);
+        $gatewayWorker->pingData             = $this->getGatewayConfig($name, 'gateway.ping.data', '');
+        
+        // 启用ssl
+        if ($this->getGatewayConfig($name, 'gateway.ssl')) {
+            $gatewayWorker->transport = 'ssl';
+        }
+    }
+    
+    
+    /**
+     * 获取参数
+     * @param string $key
+     * @param mixed  $default
+     * @return mixed
+     */
+    protected function getInputOption(string $key, $default = null)
+    {
+        if ($this->input->hasOption($key)) {
+            return $this->input->getOption($key);
+        } else {
+            return $default;
+        }
     }
 }

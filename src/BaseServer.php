@@ -5,10 +5,10 @@ use Workerman\Connection\TcpConnection;
 use Workerman\Worker;
 
 /**
- * Worker控制器扩展类
+ * Worker服务基本类
  * @author busy^life <busy.life@qq.com>
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
- * @version $Id: 2022/2/17 2:21 PM Server.php $
+ * @version $Id: 2022/2/17 2:21 PM BaseServer.php $
  * @method void onWorkerStart(Worker $worker) Worker子进程启动时的回调函数，每个子进程启动时都会执行。
  * @method void onWorkerStop(Worker $worker) Worker子进程退出时的回调函数，每个子进程退出时都会执行。
  * @method void onWorkerReload(Worker $worker) Worker收到reload信号后执行的回调
@@ -19,7 +19,7 @@ use Workerman\Worker;
  * @method void onBufferDrain(TcpConnection $tcpConnection) 每个连接都有一个单独的应用层发送缓冲区，缓冲区大小由TcpConnection::$maxSendBufferSize决定，默认值为1MB，可以手动设置更改大小，更改后会对所有连接生效。该回调在应用层发送缓冲区数据全部发送完毕后触发。一般与onBufferFull配合使用，例如在onBufferFull时停止向对端继续send数据，在onBufferDrain恢复写入数据。调。
  * @method void onError(TcpConnection $tcpConnection, $code, $msg) 当客户端的连接上发生错误时触发
  */
-abstract class Server
+abstract class BaseServer
 {
     /**
      * @var Worker
