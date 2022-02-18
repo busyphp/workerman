@@ -182,41 +182,10 @@ class HttpServer extends Server
      */
     public function onMessage(TcpConnection $tcpConnection, WorkerManRequest $req)
     {
+        // 判断是否文件
         $path = ltrim($req->path(), '/');
         $file = $this->root . $path;
-        
-        // 不是文件
-        if (!is_file($file)) {
-            $this->app->reset();
-            
-            // dump中间件
-            if (class_exists(VarDumper::class)) {
-                $this->app->middleware->add(ResetVarDumper::class);
-            }
-            
-            $request = $this->prepareRequest($req);
-            try {
-                $response = $this->handleRequest($request);
-            } catch (Throwable $e) {
-                /** @var Handle $handle */
-                $handle   = $this->app->make(Handle::class);
-                $response = $handle->render($request, $e);
-            }
-            
-            $headers           = $response->getHeader();
-            $headers['Server'] = 'BusyPHP Workerman Server';
-            if (!isset($headers['Transfer-Encoding'])) {
-                unset($headers['Content-Length']);
-            }
-            
-            $res = new WorkerManResponse($response->getCode(), $headers, $response->getContent());
-            
-            // 设置Cookie
-            foreach ($this->app->cookie->getCookie() as $name => $val) {
-                [$value, $expire, $option] = $val;
-                $res->cookie($name, $value, $expire, $option['path'], $option['domain'], (bool) $option['secure'], (bool) $option['httponly'], $option['samesite']);
-            }
-        } else {
+        if (is_file($file)) {
             // 文件未修改则返回304
             if (!empty($ifModifiedSince = $req->header('If-Modified-Since'))) {
                 if (filemtime($file) === strtotime($ifModifiedSince)) {
@@ -228,6 +197,40 @@ class HttpServer extends Server
             
             $res = new WorkerManResponse();
             $res->withFile($file);
+            $tcpConnection->send($res);
+            
+            return;
+        }
+        
+        // 请求处理
+        $this->app->reset();
+        
+        // dump中间件
+        if (class_exists(VarDumper::class)) {
+            $this->app->middleware->add(ResetVarDumper::class);
+        }
+        
+        $request = $this->prepareRequest($req);
+        try {
+            $response = $this->handleRequest($request);
+        } catch (Throwable $e) {
+            /** @var Handle $handle */
+            $handle   = $this->app->make(Handle::class);
+            $response = $handle->render($request, $e);
+        }
+        
+        $headers           = $response->getHeader();
+        $headers['Server'] = 'BusyPHP Workerman Server';
+        if (!isset($headers['Transfer-Encoding'])) {
+            unset($headers['Content-Length']);
+        }
+        
+        $res = new WorkerManResponse($response->getCode(), $headers, $response->getContent());
+        
+        // 设置Cookie
+        foreach ($this->app->cookie->getCookie() as $name => $val) {
+            [$value, $expire, $option] = $val;
+            $res->cookie($name, $value, $expire, $option['path'], $option['domain'], (bool) $option['secure'], (bool) $option['httponly'], $option['samesite']);
         }
         
         $tcpConnection->send($res);
