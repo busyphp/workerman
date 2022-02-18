@@ -3,6 +3,7 @@ namespace BusyPHP\workerman;
 
 use BusyPHP\Request;
 use Closure;
+use RuntimeException;
 use Workerman\Connection\TcpConnection;
 use Workerman\Protocols\Http\Request as WorkerManRequest;
 use Workerman\Worker;
@@ -61,19 +62,19 @@ abstract class BaseServer
      * 协议
      * @var string
      */
-    protected $protocol = 'http';
+    protected $protocol = '';
     
     /**
      * IP
      * @var string
      */
-    protected $host = '0.0.0.0';
+    protected $host = '127.0.0.1';
     
     /**
      * 端口
      * @var string
      */
-    protected $port = '2346';
+    protected $port = '';
     
     /**
      * Worker配置
@@ -93,13 +94,33 @@ abstract class BaseServer
      */
     public function __construct()
     {
-        $this->worker = new Worker($this->socket ?: ($this->protocol . '://' . $this->host . ':' . $this->port), $this->context);
-        
-        // 设置参数
-        foreach ($this->option as $key => $val) {
-            $this->worker->$key = $val;
+        if (!$this->socket && (!$this->protocol || !$this->port)) {
+            throw new RuntimeException(sprintf('%s no initial parameters are set', static::class));
         }
         
+        $this->worker = new Worker($this->socket ?: ($this->protocol . '://' . $this->host . ':' . $this->port), $this->context);
+        $this->setOption($this->option);
+        $this->prepareEvent();
+    }
+    
+    
+    /**
+     * 设置Worker参数
+     * @param array $options
+     */
+    public function setOption(array $options)
+    {
+        foreach ($options as $key => $val) {
+            $this->worker->$key = $val;
+        }
+    }
+    
+    
+    /**
+     * 准备事件监听
+     */
+    protected function prepareEvent()
+    {
         // 设置回调
         $this->worker->onWorkerStart = [$this, 'onWorkerStart'];
         if (method_exists($this, 'onWorkerStop')) {

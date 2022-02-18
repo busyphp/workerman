@@ -112,5 +112,10 @@ return [
                 ]
             ]
         ],
+    ],
+    
+    // 自定义服务配置
+    'server'    => [
+        // '服务名称' => '服务类，必须继承 \BusyPHP\workerman\BaseServer 类'
     ]
 ];

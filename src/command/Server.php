@@ -1,7 +1,10 @@
 <?php
 namespace BusyPHP\workerman\command;
 
+use BusyPHP\exception\ClassNotExtendsException;
+use BusyPHP\exception\ClassNotFoundException;
 use BusyPHP\helper\ArrayHelper;
+use BusyPHP\workerman\BaseServer;
 use BusyPHP\workerman\GatewayEvents;
 use BusyPHP\workerman\WithConfig;
 use Closure;
@@ -131,8 +134,31 @@ class Server extends Command
                             $this->startGatewayWorker($name);
                         }
                     }
-                } else {
-                    $this->output->writeln("<error>The '$server' input is incorrect, example: gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
+                }
+                
+                //
+                // 分别启动自定义服务
+                elseif (0 === stripos($server, 'server.')) {
+                    $name = substr($server, 7);
+                    if (!$name) {
+                        $this->output->writeln("<error>The '$server' input is incorrect, example: server.(name)</error>");
+                        
+                        return;
+                    }
+                    
+                    try {
+                        $this->startUseServer($name);
+                    } catch (ClassNotFoundException | ClassNotExtendsException $e) {
+                        $this->output->writeln("<error>{$e->getMessage()}</error>");
+                        
+                        return;
+                    }
+                }
+                
+                //
+                // 其他
+                else {
+                    $this->output->writeln("<error>The '$server' input is incorrect, example: server.(name) or gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
                     
                     return;
                 }
@@ -144,7 +170,35 @@ class Server extends Command
             }
             
             // 启动长连接服务
-            $this->startGatewayServer();
+            foreach ($this->getWorkerConfig('gateway') ?: [] as $name => $config) {
+                // 初始化Register服务
+                if (ArrayHelper::get($config, 'register.enable')) {
+                    $this->startRegisterWorker($name);
+                }
+                
+                // 初始化BusinessWorker服务
+                if (ArrayHelper::get($config, 'business.enable')) {
+                    $this->startBusinessWorker($name);
+                }
+                
+                // 初始化gateway服务
+                if (ArrayHelper::get($config, 'gateway.enable')) {
+                    $this->startGatewayWorker($name);
+                }
+            }
+            
+            // 启动自定义服务
+            foreach ($this->getWorkerConfig('server') ?: [] as $name => $class) {
+                if (is_subclass_of($class, BaseServer::class)) {
+                    try {
+                        $this->startUseServer($name);
+                    } catch (ClassNotFoundException | ClassNotExtendsException $e) {
+                        $this->output->writeln("<error>{$e->getMessage()}</error>");
+                        
+                        return;
+                    }
+                }
+            }
         }
         
         // 设置Worker静态属性
@@ -201,27 +255,24 @@ class Server extends Command
     
     
     /**
-     * 启动长连接服务
+     * 启动自定义服务
      */
-    protected function startGatewayServer()
+    protected function startUseServer(string $name)
     {
-        $gateways = $this->getWorkerConfig('gateway') ?: [];
-        foreach ($gateways as $name => $gateway) {
-            // 初始化Register服务
-            if (ArrayHelper::get($gateway, 'register.enable')) {
-                $this->startRegisterWorker($name);
-            }
-            
-            // 初始化BusinessWorker服务
-            if (ArrayHelper::get($gateway, 'business.enable')) {
-                $this->startBusinessWorker($name);
-            }
-            
-            // 初始化gateway服务
-            if (ArrayHelper::get($gateway, 'gateway.enable')) {
-                $this->startGatewayWorker($name);
-            }
+        $class = $this->getWorkerConfig("server.$name", '');
+        if (!$class || !class_exists($class)) {
+            throw new ClassNotFoundException($class);
         }
+        
+        if (!is_subclass_of($class, BaseServer::class)) {
+            throw new ClassNotExtendsException($class, BaseServer::class);
+        }
+        
+        /** @var BaseServer $server */
+        $server = new $class;
+        $server->setOption(['name' => "BusyPHP $name Server"]);
+        $server->setRootPath($this->app->getRootPath());
+        $server->setWebPath($this->app->getPublicPath());
     }
     
     
