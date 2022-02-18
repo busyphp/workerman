@@ -42,7 +42,7 @@
 		},
 		"think"        : {
 			"config" : {
-				"busy-workerman.php" : "src/config/config.php"
+				"busy-workerman" : "src/config/config.php"
 			}
 		},
 		"busyphp"      : {
