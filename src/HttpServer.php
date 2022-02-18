@@ -3,10 +3,8 @@ declare(strict_types = 1);
 
 namespace BusyPHP\workerman;
 
-use BusyPHP\App;
 use BusyPHP\Request;
 use BusyPHP\workerman\middleware\ResetVarDumper;
-use Closure;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Symfony\Component\VarDumper\VarDumper;
@@ -21,36 +19,13 @@ use Workerman\Worker;
 
 
 /**
- * Worker http server 命令行服务类
+ * HTTP服务器
  * @author busy^life <busy.life@qq.com>
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
- * @version $Id: 2022/2/17 2:20 PM Http.php $
+ * @version $Id: 2022/2/17 2:20 PM HttpServer.php $
  */
 class HttpServer extends BaseServer
 {
-    /**
-     * @var Application
-     */
-    protected $app;
-    
-    /**
-     * 系统根目录
-     * @var string
-     */
-    protected $rootPath;
-    
-    /**
-     * Web根目录
-     * @var string
-     */
-    protected $root;
-    
-    /**
-     * 应用初始化设置
-     * @var Closure|null
-     */
-    protected $appInit;
-    
     /**
      * 热更新配置
      * @var array
@@ -83,36 +58,6 @@ class HttpServer extends BaseServer
     
     
     /**
-     * 设置运行跟目录
-     * @param string $path
-     */
-    public function setRootPath(string $path)
-    {
-        $this->rootPath = $path;
-    }
-    
-    
-    /**
-     * 设置应用设置闭包
-     * @param Closure $closure
-     */
-    public function appInit(Closure $closure)
-    {
-        $this->appInit = $closure;
-    }
-    
-    
-    /**
-     * 设置Web入口更目录
-     * @param string $path
-     */
-    public function setRoot(string $path)
-    {
-        $this->root = $path;
-    }
-    
-    
-    /**
      * 设置热更新
      * @param int      $interval
      * @param string[] $path
@@ -130,17 +75,7 @@ class HttpServer extends BaseServer
      */
     public function onWorkerStart(Worker $worker)
     {
-        if (!$this->app instanceof Application) {
-            $this->app = new Application($this->rootPath);
-            $this->app->bind(Application::class, App::class);
-        }
-        
-        // 初始化应用程序
-        if ($this->appInit) {
-            call_user_func_array($this->appInit, [$this->app]);
-        }
-        
-        $this->app->initialize();
+        parent::onWorkerStart($worker);
         
         // 启动热更新
         $this->lastMtime = time();
@@ -184,7 +119,7 @@ class HttpServer extends BaseServer
     {
         // 判断是否文件
         $path = ltrim($req->path(), '/');
-        $file = $this->root . $path;
+        $file = $this->webPath . $path;
         if (is_file($file)) {
             // 文件未修改则返回304
             if (!empty($ifModifiedSince = $req->header('If-Modified-Since'))) {
@@ -212,6 +147,7 @@ class HttpServer extends BaseServer
         }
         
         $request = $this->prepareRequest($req);
+        $this->app->instance('request', $request);
         try {
             $response = $this->handleRequest($request);
         } catch (Throwable $e) {
@@ -235,41 +171,6 @@ class HttpServer extends BaseServer
         }
         
         $tcpConnection->send($res);
-    }
-    
-    
-    /**
-     * 预处理请求
-     * @param WorkerManRequest $req
-     * @return Request
-     */
-    protected function prepareRequest(WorkerManRequest $req) : Request
-    {
-        $header = $req->header() ?: [];
-        
-        $_SERVER['REQUEST_URI']    = $req->uri();
-        $_SERVER['QUERY_STRING']   = $req->queryString();
-        $_SERVER['PATH_INFO']      = $req->path();
-        $_SERVER['REQUEST_METHOD'] = $req->method();
-        $server                    = $_SERVER;
-        
-        foreach ($header as $key => $value) {
-            $server["http_" . str_replace('-', '_', $key)] = $value;
-        }
-        
-        /** @var Request $request */
-        $request = $this->app->make('request', [], true);
-        
-        return $request->withHeader($header)
-            ->withServer($server)
-            ->withGet($req->get() ?: [])
-            ->withPost($req->post() ?: [])
-            ->withCookie($req->cookie() ?: [])
-            ->withInput($req->rawBody())
-            ->withFiles($req->file())
-            ->setBaseUrl($server['PATH_INFO'])
-            ->setUrl($server['REQUEST_URI'])
-            ->setPathinfo(ltrim($server['PATH_INFO'], '/'));
     }
     
     

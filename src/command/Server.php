@@ -183,12 +183,12 @@ class Server extends Command
         $port    = $this->getInputOption('port', $this->getWorkerConfig('http.port')) ?: '2346';
         $context = $this->getWorkerConfig('http.context') ?: [];
         $server  = new HttpServer($host, $port, $context, $option);
-        $server->setRoot($this->app->getPublicPath());   // 设置应用根目录
-        $server->setRootPath($this->app->getRootPath()); // 设置系统根目录
+        $server->setWebPath($this->app->getPublicPath());   // 设置应用根目录
+        $server->setRootPath($this->app->getRootPath());    // 设置系统根目录
         
         // 应用设置
         if (($appInit = $this->getWorkerConfig('http.app_init', '')) instanceof Closure) {
-            $server->appInit($appInit);
+            $server->setAppInit($appInit);
         }
         
         // 设置文件监控

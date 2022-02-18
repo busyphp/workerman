@@ -1,7 +1,10 @@
 <?php
 namespace BusyPHP\workerman;
 
+use BusyPHP\Request;
+use Closure;
 use Workerman\Connection\TcpConnection;
+use Workerman\Protocols\Http\Request as WorkerManRequest;
 use Workerman\Worker;
 
 /**
@@ -9,7 +12,6 @@ use Workerman\Worker;
  * @author busy^life <busy.life@qq.com>
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
  * @version $Id: 2022/2/17 2:21 PM BaseServer.php $
- * @method void onWorkerStart(Worker $worker) Worker子进程启动时的回调函数，每个子进程启动时都会执行。
  * @method void onWorkerStop(Worker $worker) Worker子进程退出时的回调函数，每个子进程退出时都会执行。
  * @method void onWorkerReload(Worker $worker) Worker收到reload信号后执行的回调
  * @method void onConnect(TcpConnection $tcpConnection) 当客户端与Workerman建立连接时(TCP三次握手完成后)触发的回调函数。每个连接只会触发一次onConnect回调。
@@ -21,6 +23,29 @@ use Workerman\Worker;
  */
 abstract class BaseServer
 {
+    /**
+     * @var Application
+     */
+    protected $app;
+    
+    /**
+     * 应用初始化设置
+     * @var Closure|null
+     */
+    protected $appInit;
+    
+    /**
+     * 系统根目录
+     * @var string
+     */
+    protected $rootPath;
+    
+    /**
+     * Web根目录
+     * @var string
+     */
+    protected $webPath;
+    
     /**
      * @var Worker
      */
@@ -76,9 +101,7 @@ abstract class BaseServer
         }
         
         // 设置回调
-        if (method_exists($this, 'onWorkerStart')) {
-            $this->worker->onWorkerStart = [$this, 'onWorkerStart'];
-        }
+        $this->worker->onWorkerStart = [$this, 'onWorkerStart'];
         if (method_exists($this, 'onWorkerStop')) {
             $this->worker->onWorkerStop = [$this, 'onWorkerStop'];
         }
@@ -103,6 +126,87 @@ abstract class BaseServer
         if (method_exists($this, 'onError')) {
             $this->worker->onError = [$this, 'onError'];
         }
+    }
+    
+    
+    /**
+     * 设置运行跟目录
+     * @param string $path
+     */
+    public function setRootPath(string $path)
+    {
+        $this->rootPath = $path;
+    }
+    
+    
+    /**
+     * 设置Web入口更目录
+     * @param string $path
+     */
+    public function setWebPath(string $path)
+    {
+        $this->webPath = $path;
+    }
+    
+    
+    /**
+     * 设置应用设置闭包
+     * @param Closure $closure
+     */
+    public function setAppInit(Closure $closure)
+    {
+        $this->appInit = $closure;
+    }
+    
+    
+    /**
+     * 预处理请求
+     * @param WorkerManRequest $req
+     * @return Request
+     */
+    protected function prepareRequest(WorkerManRequest $req) : Request
+    {
+        $header = $req->header() ?: [];
+        
+        $_SERVER['REQUEST_URI']    = $req->uri();
+        $_SERVER['QUERY_STRING']   = $req->queryString();
+        $_SERVER['PATH_INFO']      = $req->path();
+        $_SERVER['REQUEST_METHOD'] = $req->method();
+        $server                    = $_SERVER;
+        
+        foreach ($header as $key => $value) {
+            $server["http_" . str_replace('-', '_', $key)] = $value;
+        }
+        
+        /** @var Request $request */
+        $request = $this->app->make('request', [], true);
+        
+        return $request->withHeader($header)
+            ->withServer($server)
+            ->withGet($req->get() ?: [])
+            ->withPost($req->post() ?: [])
+            ->withCookie($req->cookie() ?: [])
+            ->withInput($req->rawBody())
+            ->withFiles($req->file())
+            ->setBaseUrl($server['PATH_INFO'])
+            ->setUrl($server['REQUEST_URI'])
+            ->setPathinfo(ltrim($server['PATH_INFO'], '/'));
+    }
+    
+    
+    /**
+     * Worker子进程启动时的回调函数，每个子进程启动时都会执行。
+     */
+    public function onWorkerStart(Worker $worker)
+    {
+        $this->app = new Application($this->rootPath);
+        
+        // 初始化应用程序
+        if ($this->appInit instanceof Closure) {
+            call_user_func_array($this->appInit, [$this->app]);
+        }
+        
+        $this->app->initialize();
     }
     
     
