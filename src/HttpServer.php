@@ -96,7 +96,7 @@ class HttpServer extends BaseServer
                         if ($this->lastMtime < $file->getMTime()) {
                             echo '[update]' . $file . "\n";
                             
-                            $this->stop();
+                            $this->restart(true);
                             $this->lastMtime = $file->getMTime();
                             
                             return;
