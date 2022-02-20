@@ -98,7 +98,7 @@ abstract class BaseServer
             throw new RuntimeException(sprintf('%s no initial parameters are set', static::class));
         }
         
-        $this->worker = new Worker($this->socket ?: ($this->protocol . '://' . $this->host . ':' . $this->port), $this->context);
+        $this->worker = new Worker($this->socket ? ($this->socket === true ? '' : $this->socket) : ($this->protocol . '://' . $this->host . ':' . $this->port), $this->context);
         $this->setOption($this->option);
         $this->prepareEvent();
     }
@@ -227,6 +227,8 @@ abstract class BaseServer
             call_user_func_array($this->appInit, [$this->app]);
         }
         
+        $this->app->bind('db', Db::class);
+        
         $this->app->initialize();
     }
     
@@ -241,10 +243,15 @@ abstract class BaseServer
     
     
     /**
-     * 停止服务
+     * 重启服务
+     * @param bool $all 是否重启所有子进程
      */
-    public function stop()
+    public function restart(bool $all = false)
     {
-        Worker::stopAll();
+        if ($all) {
+            posix_kill(posix_getppid(), SIGUSR1);
+        } else {
+            Worker::stopAll();
+        }
     }
 }
