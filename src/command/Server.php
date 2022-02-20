@@ -201,10 +201,19 @@ class Server extends Command
             }
         }
         
+        $runtimePath = $this->app->getRuntimeRootPath('workerman') . DIRECTORY_SEPARATOR;
+        if (!is_dir($runtimePath)) {
+            if (!mkdir($runtimePath, 0755, true)) {
+                $this->output->writeln("<error>Write without permission $runtimePath</error>");
+                
+                return;
+            }
+        }
+        
         // 设置Worker静态属性
-        Worker::$pidFile    = $this->app->getRuntimeRootPath("workerman-worker.pid");
-        Worker::$logFile    = $this->app->getRuntimeRootPath("workerman-log.log");
-        Worker::$stdoutFile = $this->app->getRuntimeRootPath('workerman-stdout.log');
+        Worker::$pidFile    = $runtimePath . 'run.pid';
+        Worker::$logFile    = $runtimePath . 'run.log';
+        Worker::$stdoutFile = $runtimePath . 'stdout.log';
         if ($this->getInputOption('daemon', $this->getWorkerConfig('daemonize', false))) {
             Worker::$daemonize = true;
         }
