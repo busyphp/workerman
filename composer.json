@@ -47,16 +47,7 @@
 		},
 		"busyphp"      : {
 			"manager"  : {
-				"name"    : "Workerman模块",
-				"class"   : "BusyPHP\\workerman\\app\\controller\\ManagerController",
-				"install" : {
-					"install_operate"   : {
-						"request_confirm" : "确认要安装 <code>__package__</code> 吗？"
-					},
-					"uninstall_operate" : {
-						"request_confirm" : "确认要卸载 <code>__package__</code> 吗？"
-					}
-				}
+				"name" : "Workerman模块"
 			},
 			"services" : [
 				"BusyPHP\\workerman\\Service"
