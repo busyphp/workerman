@@ -147,7 +147,6 @@ class HttpServer extends BaseServer
         }
         
         $request = $this->prepareRequest($req);
-        $this->app->instance('request', $request);
         try {
             $response = $this->handleRequest($request);
         } catch (Throwable $e) {
