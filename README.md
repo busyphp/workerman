@@ -33,12 +33,6 @@ php think workerman stop
 php think workerman restart
 ```
 
-### 在`www`用户下运行
-
-```shell script
-su -c "php think workerman start|stop|restart" -s /bin/sh www
-```
-
 | 参数       | 默认值 | 说明                                                                  |
 |:---------|:---:|:--------------------------------------------------------------------|
 | --host   |  无  | 监听IP                                                                |
@@ -46,7 +40,7 @@ su -c "php think workerman start|stop|restart" -s /bin/sh www
 | --daemon |  无  | 是否常驻进程                                                              |
 | --server |  无  | 指定启动的服务名称，如：`http`，`gateway.websocket`, `gateway.websocket.gateway` |
 
-## 配置 `config/busy-workerman.php`
+## 配置 `config/workerman.php`
 
 ```php
 return [
