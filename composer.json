@@ -16,14 +16,14 @@
 			"email" : "busy.life@qq.com"
 		}
 	],
-	"license"     : "CC-BY-NC-4.0",
+	"license"     : "Apache-2.0",
 	"require"     : {
 		"php"                      : ">=7.2.0",
 		"ext-json"                 : "*",
 		"ext-fileinfo"             : "*",
 		"workerman/workerman"      : "^4.0",
 		"workerman/gateway-worker" : "^3.0.0",
-		"busyphp/busyphp"          : "^6.0"
+		"busyphp/busyphp"          : "^7.0"
 	},
 	"require-dev" : {
 		"symfony/var-dumper" : "^4.3|^5.1"
@@ -37,15 +37,12 @@
 		"preferred-install" : "dist"
 	},
 	"extra"       : {
-		"branch-alias" : {
-			"dev-master" : "1.0.x-dev"
-		},
-		"think"        : {
+		"think"   : {
 			"config" : {
-				"busy-workerman" : "src/config/config.php"
+				"workerman" : "src/config/config.php"
 			}
 		},
-		"busyphp"      : {
+		"busyphp" : {
 			"manager"  : {
 				"name" : "Workerman模块"
 			},
