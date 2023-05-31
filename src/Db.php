@@ -1,4 +1,5 @@
 <?php
+declare(strict_types = 1);
 
 namespace BusyPHP\workerman;
 
@@ -8,7 +9,7 @@ namespace BusyPHP\workerman;
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
  * @version $Id: 2022/2/19 9:43 PM Db.php $
  */
-class Db extends \BusyPHP\Db
+class Db extends \think\Db
 {
     protected function getConnectionConfig(string $name) : array
     {

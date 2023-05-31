@@ -1,9 +1,11 @@
 <?php
+declare(strict_types = 1);
+
 namespace BusyPHP\workerman;
 
-use BusyPHP\Request;
 use Closure;
 use RuntimeException;
+use think\Request;
 use Workerman\Connection\TcpConnection;
 use Workerman\Protocols\Http\Request as WorkerManRequest;
 use Workerman\Worker;

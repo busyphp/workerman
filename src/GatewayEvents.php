@@ -4,7 +4,7 @@ declare(strict_types = 1);
 namespace BusyPHP\workerman;
 
 use BusyPHP\App;
-use BusyPHP\Request;
+use think\Request;
 use Workerman\Worker;
 
 /**

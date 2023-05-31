@@ -1,4 +1,5 @@
 <?php
+declare(strict_types = 1);
 
 namespace BusyPHP\workerman;
 
@@ -17,27 +18,27 @@ trait WithConfig
      * 获取Worker配置
      * @param string $name
      * @param mixed  $default
-     * @return array|mixed
+     * @return mixed
      */
-    public function getWorkerConfig(string $name, $default = null)
+    public function getWorkerConfig(string $name, mixed $default = null) : mixed
     {
         $app = $this->app ?? App::getInstance();
         
-        return $app->config->get("busy-workerman.{$name}", $default);
+        return $app->config->get("workerman.{$name}", $default);
     }
     
     
     /**
      * 获取gateway配置
-     * @param string|int $name
+     * @param string $name
      * @param string     $key
-     * @param mixed      $default
+     * @param mixed|null $default
      * @return array|mixed
      */
-    protected function getGatewayConfig($name, string $key, $default = null)
+    protected function getGatewayConfig(string $name, string $key, mixed $default = null) : mixed
     {
-        $key = $key ? ".{$key}" : '';
+        $key = $key ? ".$key" : '';
         
-        return $this->getWorkerConfig("gateway.{$name}{$key}", $default);
+        return $this->getWorkerConfig("gateway.$name$key", $default);
     }
 }

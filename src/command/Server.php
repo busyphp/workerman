@@ -1,4 +1,6 @@
 <?php
+declare(strict_types = 1);
+
 namespace BusyPHP\workerman\command;
 
 use BusyPHP\exception\ClassNotExtendsException;
@@ -28,7 +30,7 @@ class Server extends Command
 {
     use WithConfig;
     
-    protected $config = [];
+    protected array $config = [];
     
     
     public function configure()
@@ -83,7 +85,7 @@ class Server extends Command
                     }
                     
                     // 分别启动，适用于window环境
-                    if (false !== strpos($name, '.')) {
+                    if (str_contains($name, '.')) {
                         $arr  = explode('.', $name);
                         $name = trim($arr[0] ?? '');
                         $key  = trim($arr[1] ?? '');
@@ -148,7 +150,7 @@ class Server extends Command
                     
                     try {
                         $this->startUseServer($name);
-                    } catch (ClassNotFoundException | ClassNotExtendsException $e) {
+                    } catch (ClassNotFoundException|ClassNotExtendsException $e) {
                         $this->output->writeln("<error>{$e->getMessage()}</error>");
                         
                         return;
@@ -192,7 +194,7 @@ class Server extends Command
                 if (is_subclass_of($class, BaseServer::class)) {
                     try {
                         $this->startUseServer($name);
-                    } catch (ClassNotFoundException | ClassNotExtendsException $e) {
+                    } catch (ClassNotFoundException|ClassNotExtendsException $e) {
                         $this->output->writeln("<error>{$e->getMessage()}</error>");
                         
                         return;
@@ -354,11 +356,11 @@ class Server extends Command
     
     /**
      * 获取参数
-     * @param string $key
-     * @param mixed  $default
+     * @param string     $key
+     * @param mixed|null $default
      * @return mixed
      */
-    protected function getInputOption(string $key, $default = null)
+    protected function getInputOption(string $key, mixed $default = null) : mixed
     {
         if ($this->input->hasOption($key)) {
             return $this->input->getOption($key);

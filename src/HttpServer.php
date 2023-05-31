@@ -3,12 +3,12 @@ declare(strict_types = 1);
 
 namespace BusyPHP\workerman;
 
-use BusyPHP\Request;
 use BusyPHP\workerman\middleware\ResetVarDumper;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Symfony\Component\VarDumper\VarDumper;
 use think\exception\Handle;
+use think\Request;
 use think\Response;
 use Throwable;
 use Workerman\Connection\TcpConnection;
