@@ -41,4 +41,19 @@ trait WithConfig
         
         return $this->getWorkerConfig("gateway.$name$key", $default);
     }
+    
+    
+    /**
+     * 获取queue配置
+     * @param string $name
+     * @param string     $key
+     * @param mixed|null $default
+     * @return array|mixed
+     */
+    protected function getQueueConfig(string $name, string $key, mixed $default = null) : mixed
+    {
+        $key = $key ? ".$key" : '';
+        
+        return $this->getWorkerConfig("queue.workers.$name$key", $default);
+    }
 }

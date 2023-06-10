@@ -8,6 +8,7 @@ use BusyPHP\exception\ClassNotFoundException;
 use BusyPHP\helper\ArrayHelper;
 use BusyPHP\workerman\BaseServer;
 use BusyPHP\workerman\GatewayEvents;
+use BusyPHP\workerman\QueueServer;
 use BusyPHP\workerman\WithConfig;
 use Closure;
 use GatewayWorker\BusinessWorker;
@@ -158,6 +159,25 @@ class Server extends Command
                 }
                 
                 //
+                // 分别启动queue服务
+                elseif (0 === stripos($server, 'queue.')) {
+                    $name = substr($server, 6);
+                    if (!$name) {
+                        $this->output->writeln("<error>The queue '$server' input is incorrect, example: queue.(name)</error>");
+        
+                        return;
+                    }
+    
+                    try {
+                        $this->startQueueWorker($name);
+                    } catch (ClassNotFoundException|ClassNotExtendsException $e) {
+                        $this->output->writeln("<error>{$e->getMessage()}</error>");
+        
+                        return;
+                    }
+                }
+                
+                //
                 // 其他
                 else {
                     $this->output->writeln("<error>The '$server' input is incorrect, example: server.(name) or gateway.websocket or gateway.websocket.(register|business|gateway)</error>");
@@ -186,6 +206,13 @@ class Server extends Command
                 // 初始化gateway服务
                 if (ArrayHelper::get($config, 'gateway.enable')) {
                     $this->startGatewayWorker($name);
+                }
+            }
+            
+            // 启动队列服务
+            if ($this->getWorkerConfig('queue.enable')) {
+                foreach ($this->getWorkerConfig('queue.workers', []) as $name => $config) {
+                    $this->startQueueWorker($name);
                 }
             }
             
@@ -281,7 +308,20 @@ class Server extends Command
         
         /** @var BaseServer $server */
         $server = new $class;
-        $server->setOption(['name' => "BusyPHP $name Server"]);
+        $server->setOption(['name' => "BusyPHP $name custom server"]);
+        $server->setRootPath($this->app->getRootPath());
+        $server->setWebPath($this->app->getPublicPath());
+    }
+    
+    
+    /**
+     * 启动队列服务
+     * @param string $name
+     */
+    protected function startQueueWorker(string $name)
+    {
+        $server = new QueueServer($name);
+        $server->setOption(['name' => "BusyPHP $name queue server"]);
         $server->setRootPath($this->app->getRootPath());
         $server->setWebPath($this->app->getPublicPath());
     }
@@ -305,7 +345,7 @@ class Server extends Command
     protected function startRegisterWorker(string $name)
     {
         $registerWorker       = new Register("text://{$this->getRegisterAddress($name)}");
-        $registerWorker->name = "BusyPHP $name Register Server";
+        $registerWorker->name = "BusyPHP $name register server";
     }
     
     
@@ -316,7 +356,7 @@ class Server extends Command
     protected function startBusinessWorker(string $name)
     {
         $businessWorker                  = new BusinessWorker();
-        $businessWorker->name            = "BusyPHP $name Business Server";
+        $businessWorker->name            = "BusyPHP $name business server";
         $businessWorker->registerAddress = $this->getRegisterAddress($name);
         $businessWorker->eventHandler    = $this->getGatewayConfig($name, 'business.handler', '') ?: GatewayEvents::class;
         $businessWorker->count           = max($this->getGatewayConfig($name, 'business.worker_num', 0), 1);
@@ -339,7 +379,7 @@ class Server extends Command
         
         $gatewayWorker                       = new Gateway($url, $this->getGatewayConfig($name, 'gateway.context') ?: []);
         $gatewayWorker->registerAddress      = $this->getRegisterAddress($name);
-        $gatewayWorker->name                 = "BusyPHP $name Gateway Server";
+        $gatewayWorker->name                 = "BusyPHP $name gateway server";
         $gatewayWorker->count                = max($this->getGatewayConfig($name, 'gateway.worker_num'), 1);
         $gatewayWorker->lanIp                = $this->getGatewayConfig($name, 'gateway.lan_ip') ?: '127.0.0.1';
         $gatewayWorker->startPort            = $this->getGatewayConfig($name, 'gateway.start_port') ?: 2000;
