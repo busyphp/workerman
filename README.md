@@ -159,7 +159,7 @@ return [
     
     // 队列配置
     'queue'     => [
-        'enable'  => true,
+        'enable'  => false,
     
         // 进程配置
         'workers' => [
