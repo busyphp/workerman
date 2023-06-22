@@ -23,7 +23,7 @@ class GatewayEvents
      * BusinessWorker进程启动时触发。每个进程生命周期内都只会触发一次
      * @param Worker $worker
      */
-    public static function onWorkerStart(Worker $worker)
+    public static function onWorkerStart(Worker $worker) : void
     {
         self::$app = new Application;
         self::$app->initialize();
@@ -34,7 +34,7 @@ class GatewayEvents
      * BusinessWorker进程退出时触发。每个进程生命周期内都只会触发一次
      * @param Worker $worker
      */
-    public static function onWorkerStop(Worker $worker)
+    public static function onWorkerStop(Worker $worker) : void
     {
     }
     
@@ -43,7 +43,7 @@ class GatewayEvents
      * 当客户端连接上gateway进程时(TCP三次握手完毕时)触发
      * @param string $clientId 客户端ID
      */
-    public static function onConnect(string $clientId)
+    public static function onConnect(string $clientId) : void
     {
     }
     
@@ -53,7 +53,7 @@ class GatewayEvents
      * @param string $clientId 客户端ID
      * @param array  $data 请求数据
      */
-    public static function onWebSocketConnect(string $clientId, array $data)
+    public static function onWebSocketConnect(string $clientId, array $data) : void
     {
         // 分离headers
         $headers = [];
@@ -89,7 +89,7 @@ class GatewayEvents
      * @param string  $clientId 客户端ID
      * @param Request $request 请求对象
      */
-    public static function onOpen(string $clientId, Request $request)
+    public static function onOpen(string $clientId, Request $request) : void
     {
     }
     
@@ -99,7 +99,7 @@ class GatewayEvents
      * @param string $clientId 客户端ID
      * @param mixed  $data 收到的数据
      */
-    public static function onMessage(string $clientId, $data)
+    public static function onMessage(string $clientId, mixed $data) : void
     {
     }
     
@@ -108,7 +108,7 @@ class GatewayEvents
      * 当用户断开连接时触发的方法
      * @param string $clientId 客户端ID
      */
-    public static function onClose(string $clientId)
+    public static function onClose(string $clientId) : void
     {
     }
 }

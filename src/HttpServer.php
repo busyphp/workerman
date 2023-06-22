@@ -30,23 +30,23 @@ class HttpServer extends BaseServer
      * 热更新配置
      * @var array
      */
-    protected $monitor;
+    protected array $monitor = [];
     
     /**
      * 最后一次热更新时间
      * @var int
      */
-    protected $lastMtime;
+    protected int $lastMtime;
     
     
     /**
      * 架构函数
-     * @param string     $host 监听地址
-     * @param int|string $port 监听端口
-     * @param array      $context 参数
-     * @param array      $option 配置
+     * @param string $host 监听地址
+     * @param string $port 监听端口
+     * @param array  $context 参数
+     * @param array  $option 配置
      */
-    public function __construct(string $host, $port, array $context = [], array $option = [])
+    public function __construct(string $host, string $port, array $context = [], array $option = [])
     {
         $this->protocol = 'http';
         $this->host     = $host;
@@ -73,7 +73,7 @@ class HttpServer extends BaseServer
      * onWorkerStart 事件回调
      * @param Worker $worker
      */
-    public function onWorkerStart(Worker $worker)
+    public function onWorkerStart(Worker $worker) : void
     {
         parent::onWorkerStart($worker);
         
@@ -112,17 +112,17 @@ class HttpServer extends BaseServer
      * onMessage 事件回调
      * @access public
      * @param TcpConnection    $tcpConnection
-     * @param WorkerManRequest $req
+     * @param WorkerManRequest $data
      * @return void
      */
-    public function onMessage(TcpConnection $tcpConnection, WorkerManRequest $req)
+    public function onMessage(TcpConnection $tcpConnection, mixed $data) : void
     {
         // 判断是否文件
-        $path = ltrim($req->path(), '/');
+        $path = ltrim($data->path(), '/');
         $file = $this->webPath . $path;
         if (is_file($file)) {
             // 文件未修改则返回304
-            if (!empty($ifModifiedSince = $req->header('If-Modified-Since'))) {
+            if (!empty($ifModifiedSince = $data->header('If-Modified-Since'))) {
                 if (filemtime($file) === strtotime($ifModifiedSince)) {
                     $tcpConnection->send(new WorkerManResponse(304));
                     
@@ -146,7 +146,7 @@ class HttpServer extends BaseServer
             $this->app->middleware->add(ResetVarDumper::class);
         }
         
-        $request = $this->prepareRequest($req);
+        $request = $this->prepareRequest($data);
         try {
             $response = $this->handleRequest($request);
         } catch (Throwable $e) {

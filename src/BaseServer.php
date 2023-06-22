@@ -7,7 +7,7 @@ use Closure;
 use RuntimeException;
 use think\Request;
 use Workerman\Connection\TcpConnection;
-use Workerman\Protocols\Http\Request as WorkerManRequest;
+use Workerman\Protocols\Http\Request as WorkermanRequest;
 use Workerman\Worker;
 
 /**
@@ -15,80 +15,72 @@ use Workerman\Worker;
  * @author busy^life <busy.life@qq.com>
  * @copyright (c) 2015--2022 ShanXi Han Tuo Technology Co.,Ltd. All rights reserved.
  * @version $Id: 2022/2/17 2:21 PM BaseServer.php $
- * @method void onWorkerStop(Worker $worker) Worker子进程退出时的回调函数，每个子进程退出时都会执行。
- * @method void onWorkerReload(Worker $worker) Worker收到reload信号后执行的回调
- * @method void onConnect(TcpConnection $tcpConnection) 当客户端与Workerman建立连接时(TCP三次握手完成后)触发的回调函数。每个连接只会触发一次onConnect回调。
- * @method void onMessage(TcpConnection $tcpConnection, $data) 当客户端通过连接发来数据时(Workerman收到数据时)触发的回调函数
- * @method void onClose(TcpConnection $tcpConnection) 当客户端连接与Workerman断开时触发的回调函数。不管连接是如何断开的，只要断开就会触发onClose。每个连接只会触发一次onClose
- * @method void onBufferFull(TcpConnection $tcpConnection) 每个连接都有一个单独的应用层发送缓冲区，如果客户端接收速度小于服务端发送速度，数据会在应用层缓冲区暂存，如果缓冲区满则会触发onBufferFull回调。
- * @method void onBufferDrain(TcpConnection $tcpConnection) 每个连接都有一个单独的应用层发送缓冲区，缓冲区大小由TcpConnection::$maxSendBufferSize决定，默认值为1MB，可以手动设置更改大小，更改后会对所有连接生效。该回调在应用层发送缓冲区数据全部发送完毕后触发。一般与onBufferFull配合使用，例如在onBufferFull时停止向对端继续send数据，在onBufferDrain恢复写入数据。调。
- * @method void onError(TcpConnection $tcpConnection, $code, $msg) 当客户端的连接上发生错误时触发
  */
 abstract class BaseServer
 {
     /**
      * @var Application
      */
-    protected $app;
+    protected Application $app;
+    
+    /**
+     * @var Worker
+     */
+    protected Worker $worker;
     
     /**
      * 应用初始化设置
      * @var Closure|null
      */
-    protected $appInit;
+    protected ?Closure $appInit = null;
     
     /**
      * 系统根目录
      * @var string
      */
-    protected $rootPath;
+    protected string $rootPath = '';
     
     /**
      * Web根目录
      * @var string
      */
-    protected $webPath;
+    protected string $webPath = '';
     
     /**
-     * @var Worker
+     * 指定协议，如：http://127.0.0.0:8888，设为true则无协议
+     * @var string|bool
      */
-    protected $worker;
-    
-    /**
-     * 指定协议，如：http://127.0.0.0:8888
-     * @var string
-     */
-    protected $socket = '';
+    protected string|bool $socket = '';
     
     /**
      * 协议
      * @var string
      */
-    protected $protocol = '';
+    protected string $protocol = '';
     
     /**
      * IP
      * @var string
      */
-    protected $host = '127.0.0.1';
+    protected string $host = '127.0.0.1';
     
     /**
      * 端口
      * @var string
      */
-    protected $port = '';
+    protected string $port = '';
     
     /**
      * Worker配置
      * @var array
      */
-    protected $option = [];
+    protected array $option = [];
     
     /**
      * Worker上下文
      * @var array
      */
-    protected $context = [];
+    protected array $context = [];
     
     
     /**
@@ -110,7 +102,7 @@ abstract class BaseServer
      * 设置Worker参数
      * @param array $options
      */
-    public function setOption(array $options)
+    public function setOption(array $options) : void
     {
         foreach ($options as $key => $val) {
             $this->worker->$key = $val;
@@ -121,34 +113,18 @@ abstract class BaseServer
     /**
      * 准备事件监听
      */
-    protected function prepareEvent()
+    protected function prepareEvent() : void
     {
         // 设置回调
-        $this->worker->onWorkerStart = [$this, 'onWorkerStart'];
-        if (method_exists($this, 'onWorkerStop')) {
-            $this->worker->onWorkerStop = [$this, 'onWorkerStop'];
-        }
-        if (method_exists($this, 'onWorkerReload')) {
-            $this->worker->onWorkerReload = [$this, 'onWorkerReload'];
-        }
-        if (method_exists($this, 'onConnect')) {
-            $this->worker->onConnect = [$this, 'onConnect'];
-        }
-        if (method_exists($this, 'onMessage')) {
-            $this->worker->onMessage = [$this, 'onMessage'];
-        }
-        if (method_exists($this, 'onClose')) {
-            $this->worker->onClose = [$this, 'onClose'];
-        }
-        if (method_exists($this, 'onBufferFull')) {
-            $this->worker->onBufferFull = [$this, 'onBufferFull'];
-        }
-        if (method_exists($this, 'onBufferDrain')) {
-            $this->worker->onBufferDrain = [$this, 'onBufferDrain'];
-        }
-        if (method_exists($this, 'onError')) {
-            $this->worker->onError = [$this, 'onError'];
-        }
+        $this->worker->onWorkerStart  = [$this, 'onWorkerStart'];
+        $this->worker->onWorkerStop   = [$this, 'onWorkerStop'];
+        $this->worker->onWorkerReload = [$this, 'onWorkerReload'];
+        $this->worker->onConnect      = [$this, 'onConnect'];
+        $this->worker->onMessage      = [$this, 'onMessage'];
+        $this->worker->onClose        = [$this, 'onClose'];
+        $this->worker->onBufferFull   = [$this, 'onBufferFull'];
+        $this->worker->onBufferDrain  = [$this, 'onBufferDrain'];
+        $this->worker->onError        = [$this, 'onError'];
     }
     
     
@@ -156,7 +132,7 @@ abstract class BaseServer
      * 设置运行跟目录
      * @param string $path
      */
-    public function setRootPath(string $path)
+    public function setRootPath(string $path) : void
     {
         $this->rootPath = $path;
     }
@@ -166,7 +142,7 @@ abstract class BaseServer
      * 设置Web入口更目录
      * @param string $path
      */
-    public function setWebPath(string $path)
+    public function setWebPath(string $path) : void
     {
         $this->webPath = $path;
     }
@@ -176,7 +152,7 @@ abstract class BaseServer
      * 设置应用设置闭包
      * @param Closure $closure
      */
-    public function setAppInit(Closure $closure)
+    public function setAppInit(Closure $closure) : void
     {
         $this->appInit = $closure;
     }
@@ -184,10 +160,10 @@ abstract class BaseServer
     
     /**
      * 预处理请求
-     * @param WorkerManRequest $req
+     * @param WorkermanRequest $req
      * @return Request
      */
-    protected function prepareRequest(WorkerManRequest $req) : Request
+    protected function prepareRequest(WorkermanRequest $req) : Request
     {
         $header = $req->header() ?: [];
         
@@ -218,9 +194,11 @@ abstract class BaseServer
     
     
     /**
-     * Worker子进程启动时的回调函数，每个子进程启动时都会执行。
+     * Worker子进程启动时的回调函数，每个子进程启动时都会执行
+     * @param Worker $worker Worker对象
+     * @return void
      */
-    public function onWorkerStart(Worker $worker)
+    public function onWorkerStart(Worker $worker) : void
     {
         $this->app = new Application($this->rootPath);
         
@@ -236,9 +214,98 @@ abstract class BaseServer
     
     
     /**
+     * Worker子进程退出时的回调函数，每个子进程退出时都会执行
+     * @param Worker $worker Worker对象
+     * @return void
+     */
+    public function onWorkerStop(Worker $worker) : void
+    {
+    }
+    
+    
+    /**
+     * 设置Worker收到reload信号后执行的回调。
+     * @param Worker $worker
+     * @return void
+     */
+    public function onWorkerReload(Worker $worker) : void
+    {
+    }
+    
+    
+    /**
+     * 当客户端与Workerman建立连接时(TCP三次握手完成后)触发的回调函数。每个连接只会触发一次onConnect回调。
+     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @return void
+     */
+    public function onConnect(TcpConnection $connection) : void
+    {
+    }
+    
+    
+    /**
+     * 当客户端通过连接发来数据时(Workerman收到数据时)触发的回调函数
+     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param mixed         $data 客户端连接上发来的数据，如果Worker指定了协议，则$data是对应协议decode（解码）了的数据。数据类型与协议decode()实现有关，websocket text frame 为字符串，HTTP协议为 {@see WorkermanRequest} 对象。
+     * @return void
+     */
+    public function onMessage(TcpConnection $connection, mixed $data) : void
+    {
+    }
+    
+    
+    /**
+     * 当客户端连接与Workerman断开时触发的回调函数。不管连接是如何断开的，只要断开就会触发onClose。每个连接只会触发一次onClose
+     * - 如果对端是由于断网或者断电等极端情况断开的连接，这时由于无法及时发送tcp的fin包给workerman，workerman就无法得知连接已经断开，也就无法及时触发onClose
+     * - 由于udp是无连接的，所以当使用udp时不会触发onConnect回调，也不会触发onClose回调
+     * @param TcpConnection $connection
+     * @return void
+     */
+    public function onClose(TcpConnection $connection) : void
+    {
+    }
+    
+    
+    /**
+     * 每个连接都有一个单独的应用层发送缓冲区，如果客户端接收速度小于服务端发送速度，数据会在应用层缓冲区暂存，如果缓冲区满则会触发onBufferFull回调
+     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @return void
+     */
+    public function onBufferFull(TcpConnection $connection) : void
+    {
+    }
+    
+    
+    /**
+     * 每个连接都有一个单独的应用层发送缓冲区，缓冲区大小由TcpConnection::$maxSendBufferSize决定，默认值为1MB，可以手动设置更改大小，更改后会对所有连接生效。
+     * - 该回调在应用层发送缓冲区数据全部发送完毕后触发。一般与onBufferFull配合使用，例如在onBufferFull时停止向对端继续send数据，在onBufferDrain恢复写入数据。
+     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @return void
+     */
+    public function onBufferDrain(TcpConnection $connection) : void
+    {
+    }
+    
+    
+    /**
+     * 当客户端的连接上发生错误时触发，目前错误类型有：
+     * 1. 调用Connection::send由于客户端连接断开导致的失败（紧接着会触发onClose回调） (code:WORKERMAN_SEND_FAIL msg:client closed)
+     * 2. 在触发onBufferFull后(发送缓冲区已满)，仍然调用Connection::send，并且发送缓冲区仍然是满的状态导致发送失败(不会触发onClose回调) (code:WORKERMAN_SEND_FAIL msg:send buffer full and drop package)
+     * 3. 使用AsyncTcpConnection异步连接失败时(紧接着会触发onClose回调) (code:WORKERMAN_CONNECT_FAIL msg:stream_socket_client返回的错误消息)
+     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param int           $code 错误码
+     * @param string        $msg 错误消息
+     * @return void
+     */
+    public function onError(TcpConnection $connection, int $code, string $msg) : void
+    {
+    }
+    
+    
+    /**
      * 启动服务
      */
-    public function start()
+    public function start() : void
     {
         Worker::runAll();
     }
@@ -248,7 +315,7 @@ abstract class BaseServer
      * 重启服务
      * @param bool $all 是否重启所有子进程
      */
-    public function restart(bool $all = false)
+    public function restart(bool $all = false) : void
     {
         if ($all) {
             posix_kill(posix_getppid(), SIGUSR1);

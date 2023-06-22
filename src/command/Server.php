@@ -164,15 +164,15 @@ class Server extends Command
                     $name = substr($server, 6);
                     if (!$name) {
                         $this->output->writeln("<error>The queue '$server' input is incorrect, example: queue.(name)</error>");
-        
+                        
                         return;
                     }
-    
+                    
                     try {
                         $this->startQueueWorker($name);
                     } catch (ClassNotFoundException|ClassNotExtendsException $e) {
                         $this->output->writeln("<error>{$e->getMessage()}</error>");
-        
+                        
                         return;
                     }
                 }
@@ -274,7 +274,7 @@ class Server extends Command
         $host    = $this->getInputOption('host', $this->getWorkerConfig('http.host')) ?: '0.0.0.0';
         $port    = $this->getInputOption('port', $this->getWorkerConfig('http.port')) ?: '2346';
         $context = $this->getWorkerConfig('http.context') ?: [];
-        $server  = new HttpServer($host, $port, $context, $option);
+        $server  = new HttpServer($host, (string) $port, $context, $option);
         $server->setWebPath($this->app->getPublicPath());   // 设置应用根目录
         $server->setRootPath($this->app->getRootPath());    // 设置系统根目录
         

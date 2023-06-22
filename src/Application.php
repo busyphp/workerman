@@ -1,4 +1,6 @@
 <?php
+declare(strict_types = 1);
+
 namespace BusyPHP\workerman;
 
 use BusyPHP\App;
@@ -11,7 +13,7 @@ use BusyPHP\App;
  */
 class Application extends App
 {
-    protected $inConsole = true;
+    protected bool $inConsole = true;
     
     
     /**
