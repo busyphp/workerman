@@ -17,23 +17,23 @@ class QueueServer extends BaseServer
 {
     use WithConfig;
     
-    protected string $name;
+    protected string      $name;
+    
+    protected string|bool $socket = true;
     
     
     public function __construct(string $name)
     {
-        $this->name     = $name;
-        $this->protocol = 'text';
-        $this->host     = $this->getQueueConfig($name, 'host') ?: $this->host;
-        $this->port     = $this->getQueueConfig($name, 'port', '');
         parent::__construct();
+        
+        $this->name = $name;
         
         // 启动多少个进程
         $this->worker->count = max($this->getQueueConfig($name, 'number', 0), 1);
     }
     
     
-    public function onWorkerStart(Worker $worker)
+    public function onWorkerStart(Worker $worker) : void
     {
         parent::onWorkerStart($worker);
         
@@ -44,7 +44,7 @@ class QueueServer extends BaseServer
         $connection = $this->getQueueConfig($this->name, 'connection');
         
         $queueWorker = $this->app->make(QueueWorker::class);
-        while (true) {
+        Timer::add(0.001, function() use ($queueWorker, $delay, $sleep, $tries, $timeout, $connection) {
             $timeId = Timer::add($timeout, function() {
                 $this->restart();
             });
@@ -52,6 +52,6 @@ class QueueServer extends BaseServer
             $queueWorker->runNextJob($connection, $this->name, $delay, $sleep, $tries);
             
             Timer::del($timeId);
-        }
+        });
     }
 }
