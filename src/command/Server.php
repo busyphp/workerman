@@ -9,6 +9,7 @@ use BusyPHP\helper\ArrayHelper;
 use BusyPHP\workerman\BaseServer;
 use BusyPHP\workerman\GatewayEvents;
 use BusyPHP\workerman\QueueServer;
+use BusyPHP\workerman\TaskServer;
 use BusyPHP\workerman\WithConfig;
 use Closure;
 use GatewayWorker\BusinessWorker;
@@ -75,6 +76,8 @@ class Server extends Command
             // 启动HTTP服务
             if ($server === 'http') {
                 $this->startHttpServer();
+            } elseif ($server === 'task') {
+                $this->startTaskWorker();
             } else {
                 // 分别启动长连接服务
                 if (0 === stripos($server, 'gateway.')) {
@@ -216,6 +219,11 @@ class Server extends Command
                 }
             }
             
+            // 启动系统任务服务
+            if ($this->getWorkerConfig('task.enable', true)) {
+                $this->startTaskWorker();
+            }
+            
             // 启动自定义服务
             foreach ($this->getWorkerConfig('server') ?: [] as $name => $class) {
                 if (is_subclass_of($class, BaseServer::class)) {
@@ -322,6 +330,18 @@ class Server extends Command
     {
         $server = new QueueServer($name);
         $server->setOption(['name' => "BusyPHP $name queue server"]);
+        $server->setRootPath($this->app->getRootPath());
+        $server->setWebPath($this->app->getPublicPath());
+    }
+    
+    
+    /**
+     * 启动系统任务服务
+     */
+    protected function startTaskWorker()
+    {
+        $server = new TaskServer();
+        $server->setOption(['name' => "BusyPHP system task server"]);
         $server->setRootPath($this->app->getRootPath());
         $server->setWebPath($this->app->getPublicPath());
     }
