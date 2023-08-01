@@ -11,7 +11,7 @@ use think\exception\Handle;
 use think\Request;
 use think\Response;
 use Throwable;
-use Workerman\Connection\TcpConnection;
+use Workerman\Connection\ConnectionInterface;
 use Workerman\Lib\Timer;
 use Workerman\Protocols\Http\Request as WorkerManRequest;
 use Workerman\Protocols\Http\Response as WorkerManResponse;
@@ -111,11 +111,11 @@ class HttpServer extends BaseServer
     /**
      * onMessage 事件回调
      * @access public
-     * @param TcpConnection    $tcpConnection
-     * @param WorkerManRequest $data
+     * @param ConnectionInterface $tcpConnection
+     * @param WorkerManRequest    $data
      * @return void
      */
-    public function onMessage(TcpConnection $tcpConnection, mixed $data) : void
+    public function onMessage(ConnectionInterface $tcpConnection, mixed $data) : void
     {
         // 判断是否文件
         $path = ltrim($data->path(), '/');

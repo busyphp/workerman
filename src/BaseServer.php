@@ -6,7 +6,7 @@ namespace BusyPHP\workerman;
 use Closure;
 use RuntimeException;
 use think\Request;
-use Workerman\Connection\TcpConnection;
+use Workerman\Connection\ConnectionInterface;
 use Workerman\Protocols\Http\Request as WorkermanRequest;
 use Workerman\Worker;
 
@@ -235,21 +235,21 @@ abstract class BaseServer
     
     /**
      * 当客户端与Workerman建立连接时(TCP三次握手完成后)触发的回调函数。每个连接只会触发一次onConnect回调。
-     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param ConnectionInterface $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
      * @return void
      */
-    public function onConnect(TcpConnection $connection) : void
+    public function onConnect(ConnectionInterface $connection) : void
     {
     }
     
     
     /**
      * 当客户端通过连接发来数据时(Workerman收到数据时)触发的回调函数
-     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param ConnectionInterface $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
      * @param mixed         $data 客户端连接上发来的数据，如果Worker指定了协议，则$data是对应协议decode（解码）了的数据。数据类型与协议decode()实现有关，websocket text frame 为字符串，HTTP协议为 {@see WorkermanRequest} 对象。
      * @return void
      */
-    public function onMessage(TcpConnection $connection, mixed $data) : void
+    public function onMessage(ConnectionInterface $connection, mixed $data) : void
     {
     }
     
@@ -258,20 +258,20 @@ abstract class BaseServer
      * 当客户端连接与Workerman断开时触发的回调函数。不管连接是如何断开的，只要断开就会触发onClose。每个连接只会触发一次onClose
      * - 如果对端是由于断网或者断电等极端情况断开的连接，这时由于无法及时发送tcp的fin包给workerman，workerman就无法得知连接已经断开，也就无法及时触发onClose
      * - 由于udp是无连接的，所以当使用udp时不会触发onConnect回调，也不会触发onClose回调
-     * @param TcpConnection $connection
+     * @param ConnectionInterface $connection
      * @return void
      */
-    public function onClose(TcpConnection $connection) : void
+    public function onClose(ConnectionInterface $connection) : void
     {
     }
     
     
     /**
      * 每个连接都有一个单独的应用层发送缓冲区，如果客户端接收速度小于服务端发送速度，数据会在应用层缓冲区暂存，如果缓冲区满则会触发onBufferFull回调
-     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param ConnectionInterface $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
      * @return void
      */
-    public function onBufferFull(TcpConnection $connection) : void
+    public function onBufferFull(ConnectionInterface $connection) : void
     {
     }
     
@@ -279,10 +279,10 @@ abstract class BaseServer
     /**
      * 每个连接都有一个单独的应用层发送缓冲区，缓冲区大小由TcpConnection::$maxSendBufferSize决定，默认值为1MB，可以手动设置更改大小，更改后会对所有连接生效。
      * - 该回调在应用层发送缓冲区数据全部发送完毕后触发。一般与onBufferFull配合使用，例如在onBufferFull时停止向对端继续send数据，在onBufferDrain恢复写入数据。
-     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param ConnectionInterface $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
      * @return void
      */
-    public function onBufferDrain(TcpConnection $connection) : void
+    public function onBufferDrain(ConnectionInterface $connection) : void
     {
     }
     
@@ -292,12 +292,12 @@ abstract class BaseServer
      * 1. 调用Connection::send由于客户端连接断开导致的失败（紧接着会触发onClose回调） (code:WORKERMAN_SEND_FAIL msg:client closed)
      * 2. 在触发onBufferFull后(发送缓冲区已满)，仍然调用Connection::send，并且发送缓冲区仍然是满的状态导致发送失败(不会触发onClose回调) (code:WORKERMAN_SEND_FAIL msg:send buffer full and drop package)
      * 3. 使用AsyncTcpConnection异步连接失败时(紧接着会触发onClose回调) (code:WORKERMAN_CONNECT_FAIL msg:stream_socket_client返回的错误消息)
-     * @param TcpConnection $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
+     * @param ConnectionInterface $connection 连接对象，用于操作客户端连接，如发送数据，关闭连接等
      * @param int           $code 错误码
      * @param string        $msg 错误消息
      * @return void
      */
-    public function onError(TcpConnection $connection, int $code, string $msg) : void
+    public function onError(ConnectionInterface $connection, int $code, string $msg) : void
     {
     }
     
